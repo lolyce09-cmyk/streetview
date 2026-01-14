@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Free GeoGuessr Style Street View</title>
+<title>Free GeoGuessr-Style Street View</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet"
@@ -43,36 +43,44 @@ html, body {
 <script src="https://unpkg.com/mapillary-js@4.1.2/dist/mapillary.js"></script>
 
 <script>
-const ACCESS_TOKEN =
-"MLY|24691064960569703|d3a2cb3ed41d21a2eb4c5fc2d2aab976";
-
-const overlay = document.getElementById("overlay");
-
+const ACCESS_TOKEN = "MLY|24691064960569703|d3a2cb3ed41d21a2eb4c5fc2d2aab976";
 const viewer = new mapillary.Viewer({
   container: "viewer",
   accessToken: ACCESS_TOKEN,
   component: { cover: false }
 });
+const overlay = document.getElementById("overlay");
+
+// Fallback location if no images at your GPS
+const fallback = { lat: 40.7580, lng: -73.9855 }; // Times Square, NYC
+
+function tryLocation(lat, lng) {
+  viewer.moveToClosest(lat, lng)
+    .then(() => {
+      overlay.innerText = "Use mouse to look. W/↑ forward, S/↓ back.";
+    })
+    .catch(() => {
+      overlay.innerText = "No images near you. Spawning at fallback location.";
+      viewer.moveToClosest(fallback.lat, fallback.lng)
+        .then(() => overlay.innerText = "Use mouse to look. W/↑ forward, S/↓ back.");
+    });
+}
 
 if ("geolocation" in navigator) {
   navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      overlay.innerText = "Use mouse to look, W/↑ to move";
-      viewer.moveToClosest(
-        pos.coords.latitude,
-        pos.coords.longitude
-      );
-    },
+    pos => tryLocation(pos.coords.latitude, pos.coords.longitude),
     () => {
-      overlay.innerText =
-        "Location denied. No spawn possible.";
+      overlay.innerText = "Location denied. Spawning at fallback location.";
+      tryLocation(fallback.lat, fallback.lng);
     },
     { enableHighAccuracy: true }
   );
 } else {
-  overlay.innerText = "Geolocation not supported";
+  overlay.innerText = "Geolocation not supported. Spawning at fallback location.";
+  tryLocation(fallback.lat, fallback.lng);
 }
 
+// Keyboard movement
 window.addEventListener("keydown", (e) => {
   if (e.key === "ArrowUp" || e.key === "w") viewer.moveForward();
   if (e.key === "ArrowDown" || e.key === "s") viewer.moveBackward();
